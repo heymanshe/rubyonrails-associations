@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_02_11_102519) do
+ActiveRecord::Schema[8.0].define(version: 2025_02_11_110349) do
   create_table "account_histories", force: :cascade do |t|
     t.integer "account_id", null: false
     t.integer "credit_rating"
@@ -71,6 +71,20 @@ ActiveRecord::Schema[8.0].define(version: 2025_02_11_102519) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "employees", force: :cascade do |t|
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "order_products", primary_key: "[:order_id, :product_id]", force: :cascade do |t|
+    t.integer "order_id", null: false
+    t.integer "product_id", null: false
+    t.integer "quantity", default: 1
+    t.index ["order_id"], name: "index_order_products_on_order_id"
+    t.index ["product_id"], name: "index_order_products_on_product_id"
+  end
+
   create_table "paragraphs", force: :cascade do |t|
     t.text "content"
     t.integer "section_id", null: false
@@ -93,6 +107,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_02_11_102519) do
 
   create_table "physicians", force: :cascade do |t|
     t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "pictures", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "imageable_type"
+    t.integer "imageable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["imageable_type", "imageable_id"], name: "index_pictures_on_imageable"
+  end
+
+  create_table "products", force: :cascade do |t|
+    t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -131,6 +160,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_02_11_102519) do
   add_foreign_key "assemblies_parts", "assemblies"
   add_foreign_key "assemblies_parts", "parts"
   add_foreign_key "books", "authors"
+  add_foreign_key "order_products", "orders"
+  add_foreign_key "order_products", "products"
   add_foreign_key "paragraphs", "sections"
   add_foreign_key "sections", "documents"
   add_foreign_key "students", "teachers"
