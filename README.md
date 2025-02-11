@@ -97,3 +97,205 @@ rails generate migration AddAuthorToBooks author:references
 + Adds `author_id` column.
 
 + Sets up FK relationship in the database.
+
+
+# 2. Types of Associations
+
+- Rails supports six types of associations, each serving a specific purpose:
+
+`belongs_to`
+
+`has_one`
+
+`has_many`
+
+`has_many :through`
+
+`has_one :through`
+
+`has_and_belongs_to_many`
+
+## 2.1 belongs_to
+
++ A `belongs_to` association sets up a relationship where each instance of the declaring model "belongs to" one instance of another model. Example:
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author
+end
+```
+
+- Migration Example:
+
+```ruby
+class CreateBooks < ActiveRecord::Migration[8.0]
+  def change
+    create_table :authors do |t|
+      t.string :name
+      t.timestamps
+    end
+
+    create_table :books do |t|
+      t.belongs_to :author
+      t.datetime :published_at
+      t.timestamps
+    end
+  end
+end
+```
+
+- The `belongs_to` association ensures a reference column exists in the model's table.
+
+- Using `optional: true` allows the foreign key to be `NULL`.
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author, optional: true
+end
+```
+
+- Adding a foreign key constraint ensures integrity:
+
+```ruby
+create_table :books do |t|
+  t.belongs_to :author, foreign_key: true
+  # ...
+end
+```
+
+### 2.1.1 Methods Added by `belongs_to`
+
+- When you declare a `belongs_to` association, the model gains these methods:
+
+**Retrieving the Association**
+
+```bash
+@author = @book.author
+```
+
+- Force a database reload:
+
+```bash
+@author = @book.reload_author
+```
+
+- Reset cached association:
+
+```bash
+@book.reset_author
+```
+
+**Assigning the Association**
+
+```bash
+@book.author = @author
+```
+
+- Build an association (not saved):
+
+```bash
+@author = @book.build_author(name: "John Doe")
+```
+
+- Create and save an association:
+
+```bash
+@author = @book.create_author(name: "John Doe")
+```
+
+- Create and save, raising an error if invalid:
+
+```bash
+@book.create_author!(name: "") # Raises ActiveRecord::RecordInvalid
+```
+
+**Checking for Association Changes**
+
+```bash
+@book.author_changed? # => true if association is updated
+@book.author_previously_changed? # => true if previously updated
+```
+
+**Checking for Existing Associations**
+
+```bash
+if @book.author.nil?
+  @msg = "No author found for this book"
+end
+```
+
+**Saving Behavior**
+
+- Assigning an object to a belongs_to association does not automatically save either the parent or child.
+
+- However, saving the parent object does save the association:
+
+```bash
+@book.save
+```
+
+## 2.2 2. has_one Association
+
+- A `has_one` association indicates that one other model has a reference to this model. That model can be fetched through this association.
+
+```ruby
+class Supplier < ApplicationRecord
+  has_one :account
+end
+```
+
+```ruby
+class CreateSuppliers < ActiveRecord::Migration[8.0]
+  def change
+    create_table :suppliers do |t|
+      t.string :name
+      t.timestamps
+    end
+
+    create_table :accounts do |t|
+      t.belongs_to :supplier, index: { unique: true }, foreign_key: true
+      t.string :account_number
+      t.timestamps
+    end
+  end
+end
+```
+
+**Methods Added by `has_one`**
+
+- When declaring a `has_one` association, Rails automatically provides the following methods:
+
+`association`
+
+`association=`
+
+`build_association(attributes = {})`
+
+`create_association(attributes = {})`
+
+`create_association!(attributes = {})`
+
+`reload_association`
+
+`reset_association`
+
+```bash
+@supplier.account = @account
+@supplier.build_account(terms: "Net 30")
+@supplier.create_account(terms: "Net 30")
+```
+
+**Checking for Existing Associations**
+
+```bash
+if @supplier.account.nil?
+  @msg = "No account found for this supplier"
+end
+```
+
+**Saving Behavior**
+
+- When assigning an object to a `has_one` association, it is automatically saved unless `autosave: false` is used. If the parent object is new, the child objects are saved when the parent is saved.
+
+- Use `build_association` to work with an unsaved object before saving it explicitly.
+
