@@ -395,3 +395,70 @@ end
 
 - This type of association is best used when a simple join table is sufficient without needing extra attributes in the join table. If more attributes are needed, a `has_many :through` association is recommended.
 
+
+# 4. Advanced Associations
+
+## 4.1 Polymorphic Associations
+
+- Polymorphic associations allow a model to belong to multiple other models through a single association. This is useful when a model needs to be linked to different types of models.
+
+```ruby
+class Picture < ApplicationRecord
+  belongs_to :imageable, polymorphic: true
+end
+
+class Employee < ApplicationRecord
+  has_many :pictures, as: :imageable
+end
+
+class Product < ApplicationRecord
+  has_many :pictures, as: :imageable
+end
+```
+
+```ruby
+class CreatePictures < ActiveRecord::Migration[8.0]
+  def change
+    create_table :pictures do |t|
+      t.string :name
+      t.belongs_to :imageable, polymorphic: true
+      t.timestamps
+    end
+  end
+end
+```
+
+## 4.2 Models with Composite Primary Keys
+
+- Rails can infer primary key-foreign key relationships, but when using composite primary keys, Rails defaults to the id column unless explicitly specified.
+
+- Refer to the Composite Primary Keys guide for details on handling associations with composite keys in Rails.
+
+
+## 4.3 Self Joins
+
+- A self-join is when a table joins itself, commonly used for hierarchical relationships like employees and managers.
+
+```ruby
+class Employee < ApplicationRecord
+  has_many :subordinates, class_name: "Employee", foreign_key: "manager_id"
+  belongs_to :manager, class_name: "Employee", optional: true
+end
+```
+
+```ruby
+class CreateEmployees < ActiveRecord::Migration[8.0]
+  def change
+    create_table :employees do |t|
+      t.belongs_to :manager, foreign_key: { to_table: :employees }
+      t.timestamps
+    end
+  end
+end
+```
+
+```bash
+employee = Employee.find(1)
+subordinates = employee.subordinates
+manager = employee.manager
+```
