@@ -234,7 +234,7 @@ end
 @book.save
 ```
 
-## 2.2 2. has_one Association
+### 2.2 2. has_one Association
 
 - A `has_one` association indicates that one other model has a reference to this model. That model can be fetched through this association.
 
@@ -298,4 +298,100 @@ end
 - When assigning an object to a `has_one` association, it is automatically saved unless `autosave: false` is used. If the parent object is new, the child objects are saved when the parent is saved.
 
 - Use `build_association` to work with an unsaved object before saving it explicitly.
+
+## 2.3 has_many Association
+
+- A `has_many` association creates a one-to-many relationship where one model can be associated with multiple records of another model.
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books
+end
+
+class Book < ApplicationRecord
+  belongs_to :author
+end
+```
+
+```ruby
+class CreateAuthors < ActiveRecord::Migration[6.0]
+  def change
+    create_table :authors do |t|
+      t.string :name
+      t.timestamps
+    end
+  end
+end
+```
+
+**Methods Added by `has_many`**
+
+`collection`
+
+`collection<<`
+
+`collection.delete`
+
+`collection.destroy`
+
+`collection=, collection.clear`
+
+`collection.empty?` 
+
+`collection.size` 
+
+`collection.count`
+
+`collection.build(attributes = {})`
+
+`collection.create(attributes = {})`
+
+`collection.reload`
+
+## 2.4 has_and_belongs_to_many Association
+
+- A `has_and_belongs_to_many` association creates a direct `many-to-many` relationship between two models without using a separate model for the join table.
+
+```ruby
+class User < ApplicationRecord
+  has_and_belongs_to_many :groups
+end
+
+class Group < ApplicationRecord
+  has_and_belongs_to_many :users
+end
+```
+
+```ruby
+class CreateJoinTableUsersGroups < ActiveRecord::Migration[6.0]
+  def change
+    create_join_table :users, :groups do |t|
+      t.index [:user_id, :group_id]
+      t.index [:group_id, :user_id]
+    end
+  end
+end
+```
+
+**Methods Added by `has_and_belongs_to_many`**
+
+`collection`
+
+`collection<<`
+
+`collection.delete`
+
+`collection.destroy`
+
+`collection=, collection.clear`
+
+`collection.empty?, collection.size, collection.count`
+
+`collection.build(attributes = {})`
+
+`collection.create(attributes = {})`
+
+`collection.reload`
+
+- This type of association is best used when a simple join table is sufficient without needing extra attributes in the join table. If more attributes are needed, a `has_many :through` association is recommended.
 
