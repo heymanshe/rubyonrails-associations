@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_02_11_110349) do
+ActiveRecord::Schema[8.0].define(version: 2025_02_12_052336) do
   create_table "account_histories", force: :cascade do |t|
     t.integer "account_id", null: false
     t.integer "credit_rating"
@@ -151,6 +151,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_02_11_110349) do
 
   create_table "teachers", force: :cascade do |t|
     t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "vehicles", force: :cascade do |t|
+    t.string "type"
+    t.string "color"
+    t.decimal "price", precision: 10, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end

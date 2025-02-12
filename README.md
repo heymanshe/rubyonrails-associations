@@ -462,3 +462,100 @@ employee = Employee.find(1)
 subordinates = employee.subordinates
 manager = employee.manager
 ```
+
+# 5. Single Table Inheritance (STI) in Rails
+
+- `Single Table Inheritance (STI)` allows multiple models to be stored in a single database table. This is useful when different entities share common attributes and behavior but also have specific behaviors.
+
+## 5.1 Generating the Base Vehicle Model
+
+```bash
+$ bin/rails generate model vehicle type:string color:string price:decimal{10.2}
+```
+
+- The type field is crucial as it differentiates between models (e.g., Car, Motorcycle, Bicycle).
+
+## 5.2 Generating Child Models
+
+```bash
+$ bin/rails generate model car --parent=Vehicle
+```
+
+- Generates a model that inherits from Vehicle without creating a separate table.
+
+```ruby
+class Car < Vehicle
+end
+```
+
+- This allows Car to use all behaviors and attributes of Vehicle.
+
+## 5.3 Creating Records
+
+```bash
+Car.create(color: "Red", price: 10000)
+
+# SQL Generated:
+
+INSERT INTO "vehicles" ("type", "color", "price") VALUES ('Car', 'Red', 10000)
+```
+
+## 5.4 Querying Records
+
+```bash
+Car.all
+
+# SQL Generated:
+
+SELECT "vehicles".* FROM "vehicles" WHERE "vehicles"."type" IN ('Car')
+```
+
+## 5.5 Adding Specific Behavior
+
+```ruby
+class Car < Vehicle
+  def honk
+    "Beep Beep"
+  end
+end
+```
+```bash
+car = Car.first
+car.honk  # => 'Beep Beep'
+```
+
+## 5.6 Controllers
+
+- Each model can have its own controller:
+
+```ruby
+class CarsController < ApplicationController
+  def index
+    @cars = Car.all
+  end
+end
+```
+
+## 5.7 Overriding the Inheritance Column
+
+- If using a different column name (e.g., kind instead of type):
+
+```ruby
+class Vehicle < ApplicationRecord
+  self.inheritance_column = "kind"
+end
+```
+
+## 8. Disabling STI
+
+- To treat type as a normal column:
+
+```ruby
+class Vehicle < ApplicationRecord
+  self.inheritance_column = nil
+end
+```
+```bash
+Vehicle.create!(type: "Car")  # Treated as a normal attribute
+```
+ 
