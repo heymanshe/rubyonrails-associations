@@ -685,3 +685,160 @@ end
 - This allows `Entry#title` to call subject for Message and a truncated content for Comment.
 
 
+# 7. Tips, Tricks, and Warnings
+
+## 7.1 Controlling Association Caching
+
+- Active Record associations use caching to store loaded data.
+
+```bash
+author.books.load   # Loads books from DB
+author.books.size   # Uses cached books
+author.books.empty? # Uses cached books
+```
+
+- Use `.reload` to refresh data from the database:
+
+```bash
+author.books.reload.empty?
+```
+
+## 7.2 Avoiding Name Collisions
+
+- Avoid naming associations using reserved `ActiveRecord::Base` methods like attributes or connection to prevent conflicts.
+
+## 7.3 Updating the Schema
+
+- Associations do not modify the database schema; migrations must be created manually.
+
+### 7.3.1 Creating Foreign Keys for `belongs_to`
+
+```ruby
+class AddAuthorToBooks < ActiveRecord::Migration[8.0]
+  def change
+    add_reference :books, :author
+  end
+end
+```
+
+### 7.3.2 Creating Join Tables for `has_and_belongs_to_many`
+
+- Default join table follows lexical ordering (e.g., authors_books).
+
+- Example migration without a primary key:
+
+```ruby
+class CreateAssembliesPartsJoinTable < ActiveRecord::Migration[8.0]
+  def change
+    create_table :assemblies_parts, id: false do |t|
+      t.bigint :assembly_id
+      t.bigint :part_id
+    end
+
+    add_index :assemblies_parts, :assembly_id
+    add_index :assemblies_parts, :part_id
+  end
+end
+```
+
+- Alternatively, use `create_join_table`:
+
+```ruby
+class CreateAssembliesPartsJoinTable < ActiveRecord::Migration[8.0]
+  def change
+    create_join_table :assemblies, :parts do |t|
+      t.index :assembly_id
+      t.index :part_id
+    end
+  end
+end
+```
+
+### 7.3.3 Creating Join Tables for `has_many :through`
+
+- Requires an `id` column.
+
+```ruby
+class CreateAppointments < ActiveRecord::Migration[8.0]
+  def change
+    create_table :appointments do |t|
+      t.belongs_to :physician
+      t.belongs_to :patient
+      t.datetime :appointment_date
+      t.timestamps
+    end
+  end
+end
+```
+
+## 7.4 Controlling Association Scope
+
+- Associations within the same module work automatically:
+
+```ruby
+module MyApplication::Business
+  class Supplier < ApplicationRecord
+    has_one :account
+  end
+  class Account < ApplicationRecord
+    belongs_to :supplier
+  end
+end
+```
+
+- If models exist in different modules, specify `class_name` explicitly:
+
+```ruby
+module MyApplication::Business
+  class Supplier < ApplicationRecord
+    has_one :account, class_name: "MyApplication::Billing::Account"
+  end
+end
+module MyApplication::Billing
+  class Account < ApplicationRecord
+    belongs_to :supplier, class_name: "MyApplication::Business::Supplier"
+  end
+end
+```
+
+## 7.5 Bi-directional Associations
+
+- Rails detects bi-directional associations automatically:
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books
+end
+class Book < ApplicationRecord
+  belongs_to :author
+end
+```
+
+- **Benefits**:
+  - Prevents unnecessary queries.
+  - Ensures data consistency.
+  - Auto-saves associated records.
+  - Validates presence of associations.
+
+### 7.5.1 Handling Custom Foreign Keys
+
+- Active Record does **not** auto-detect bi-directional relationships when custom foreign keys are used:
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books
+end
+class Book < ApplicationRecord
+  belongs_to :writer, class_name: "Author", foreign_key: "author_id"
+end
+```
+
+- This may cause extra queries and inconsistent data.
+
+- Solution: Use `inverse_of` to explicitly declare bi-directionality:
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books, inverse_of: "writer"
+end
+```
