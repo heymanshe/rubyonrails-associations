@@ -546,7 +546,7 @@ class Vehicle < ApplicationRecord
 end
 ```
 
-## 8. Disabling STI
+## 5.8 Disabling STI
 
 - To treat type as a normal column:
 
@@ -558,4 +558,130 @@ end
 ```bash
 Vehicle.create!(type: "Car")  # Treated as a normal attribute
 ```
- 
+
+# 6. Delegated Types in Rails
+
+- Delegated types solve the Single Table Inheritance (STI) issue of table bloat by allowing shared attributes to be stored in a superclass table while subclass-specific attributes remain in separate tables.
+
+## 6.1 Setting up Delegated Types
+
+- A superclass stores shared attributes.
+
+- Subclasses inherit from the superclass and have separate tables for additional attributes.
+
+- Prevents unnecessary attribute sharing across all subclasses.
+
+## 6.2 Generating Models
+
+- Run the following commands to generate models:
+
+```bash
+$ bin/rails generate model entry entryable_type:string entryable_id:integer
+$ bin/rails generate model message subject:string body:string
+$ bin/rails generate model comment content:string
+```
+
+```ruby
+class Entry < ApplicationRecord
+end
+
+class Message < ApplicationRecord
+end
+
+class Comment < ApplicationRecord
+end
+```
+
+## 6.3 Declaring delegated_type
+
+- Define `delegated_type` in the superclass:
+
+```ruby
+class Entry < ApplicationRecord
+  delegated_type :entryable, types: %w[ Message Comment ], dependent: :destroy
+end
+```
+
+- `entryable_type` stores the subclass name.
+
+- `entryable_id` stores the subclass record ID.
+
+## 6.4 Defining the Entryable Module
+
+- Create a module to associate subclasses:
+
+```ruby
+module Entryable
+  extend ActiveSupport::Concern
+  
+  included do
+    has_one :entry, as: :entryable, touch: true
+  end
+end
+```
+
+- Include it in subclass models:
+
+```ruby
+class Message < ApplicationRecord
+  include Entryable
+end
+
+class Comment < ApplicationRecord
+  include Entryable
+end
+```
+
+## 6.5 Methods Provided by Delegated Types
+
+| Method                      | Returns                                                       |
+|-----------------------------|---------------------------------------------------------------|
+| `Entry.entryable_types`     | `["Message", "Comment"]`                                      |
+| `Entry#entryable_class`     | `Message` or `Comment`                                        |
+| `Entry#entryable_name`      | `"message"` or `"comment"`                                    |
+| `Entry.messages`            | `Entry.where(entryable_type: "Message")`                      |
+| `Entry.comments`            | `Entry.where(entryable_type: "Comment")`                      |
+| `Entry#message?`            | `true if entryable_type == "Message"`                         |
+| `Entry#comment?`            | `true if entryable_type == "Comment"`                         |
+| `Entry#message`             | `Message` record if `entryable_type == "Message"`, else `nil` |
+| `Entry#comment`             | `Comment` record if `entryable_type == "Comment"`, else `nil` |
+
+
+## 6.6 Object Creation
+
+- Create an Entry with a subclass object:
+
+```bash
+Entry.create! entryable: Message.new(subject: "hello!")
+```
+
+## 6.7 Adding Further Delegation
+
+- Delegate methods to subclasses:
+
+```ruby
+class Entry < ApplicationRecord
+  delegated_type :entryable, types: %w[ Message Comment ]
+  delegate :title, to: :entryable
+end
+
+class Message < ApplicationRecord
+  include Entryable
+
+  def title
+    subject
+  end
+end
+
+class Comment < ApplicationRecord
+  include Entryable
+
+  def title
+    content.truncate(20)
+  end
+end
+```
+
+- This allows `Entry#title` to call subject for Message and a truncated content for Comment.
+
+
