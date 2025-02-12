@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_02_12_063502) do
+ActiveRecord::Schema[8.0].define(version: 2025_02_12_083702) do
   create_table "account_histories", force: :cascade do |t|
     t.integer "account_id", null: false
     t.integer "credit_rating"
@@ -24,6 +24,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_02_12_063502) do
     t.string "account_number"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "supp_id"
     t.index ["supplier_id"], name: "index_accounts_on_supplier_id"
   end
 
@@ -185,6 +186,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_02_12_063502) do
 
   add_foreign_key "account_histories", "accounts"
   add_foreign_key "accounts", "suppliers"
+  add_foreign_key "accounts", "suppliers", column: "supp_id"
   add_foreign_key "assemblies_parts", "assemblies"
   add_foreign_key "assemblies_parts", "parts"
   add_foreign_key "books", "authors"

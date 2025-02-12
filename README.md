@@ -842,3 +842,405 @@ class Author < ApplicationRecord
   has_many :books, inverse_of: "writer"
 end
 ```
+
+
+# 8. Association Options
+
+## 8.1 Association Options in Rails
+
+- Rails provides several options to customize association behavior.
+
+### 8.1.1 `:class_name`
+
+- Specifies the actual model name if it differs from the association name.
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author, class_name: "Patron"
+end
+```
+
+### 8.1.2 `:dependent`
+
+- Controls what happens to associated objects when the owner is destroyed:
+
+  - `:destroy` - Calls destroy on associated objects, executing callbacks.
+  - `:delete` – Deletes associated records directly, bypassing callbacks.
+  - `:destroy_async` – Asynchronously enqueues a job to destroy associated objects.
+  - `:nullify` – Sets the foreign key to NULL.
+  - `:restrict_with_exception` – Raises ActiveRecord::DeleteRestrictionError if there are associated records.
+  - `:restrict_with_error` – Adds an error to the owner if there are associated objects.
+
+**Notes**:
+
+- Should not be used on `belongs_to` with a `has_many` association.
+
+- Ignored when using `:through`.
+
+- Does not work on `has_and_belongs_to_many`.
+
+### 8.1.3 `:foreign_key`
+
+- Specifies a custom foreign key column name.
+
+```ruby
+class Supplier < ApplicationRecord
+  has_one :account, foreign_key: "supp_id"
+end
+```
+
+### 8.1.4 `:primary_key`
+
+- Sets a different primary key for associations.
+
+```ruby
+class User < ApplicationRecord
+  self.primary_key = "guid"
+end
+
+class Todo < ApplicationRecord
+  belongs_to :user, primary_key: "guid"
+end
+```
+
+### 8.1.5 `:touch`
+
+- Updates the associated object's `updated_at` timestamp when this object is saved or destroyed.
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author, touch: true
+end
+```
+
+### 8.1.6 `:validate`
+
+- If `true`, new associated objects are validated when saving the parent object.
+
+- Default: `false`.
+
+### 8.1.7 `:inverse_of`
+
+- Specifies the inverse association name.
+
+```ruby
+class Supplier < ApplicationRecord
+  has_one :account, inverse_of: :supplier
+end
+
+class Account < ApplicationRecord
+  belongs_to :supplier, inverse_of: :account
+end
+```
+
+### 8.1.8 `:source_type`
+
+- Used in has_many :through with polymorphic associations.
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books
+  has_many :paperbacks, through: :books, source: :format, source_type: "Paperback"
+end
+```
+
+### 8.1.9 `:strict_loading`
+
+- Ensures strict loading whenever an associated record is accessed.
+
+### 8.1.10 `:association_foreign_key`
+
+- Defines the foreign key column in a `has_and_belongs_to_many` join table.
+
+```ruby
+class User < ApplicationRecord
+  has_and_belongs_to_many :friends,
+    class_name: "User",
+    foreign_key: "this_user_id",
+    association_foreign_key: "other_user_id"
+end
+```
+
+### 8.1.11 `:join_table`
+
+- Specifies the custom join table name in `has_and_belongs_to_many` associations.
+
+## 8.2 Scopes
+
+- Scopes allow defining reusable queries as method calls on associations.
+
+### 8.2.1 General Scopes
+
+**where**
+
+- Used to filter associated records.
+
+```ruby
+class Part < ApplicationRecord
+  has_and_belongs_to_many :assemblies, -> { where factory: "Seattle" }
+end
+```
+
+- Using a hash automatically scopes record creation:
+
+```bash
+@parts.assemblies.create # Ensures factory is 'Seattle'
+```
+
+**includes**
+
+- Used for eager-loading nested associations.
+
+```ruby
+class Supplier < ApplicationRecord
+  has_one :account, -> { includes :representative }
+end
+```
+
+- Not needed for immediate associations.
+
+**readonly**
+
+- Makes associated objects read-only.
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author, -> { readonly }
+end
+```
+
+- Prevents modifications:
+
+```bash
+@book.author.save! # Raises ActiveRecord::ReadOnlyRecord error
+```
+
+**select**
+
+- Restricts selected columns.
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books, -> { select(:id, :title) }
+end
+```
+
+- For `belongs_to`, `specify :foreign_key`:
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author, -> { select(:id, :name) }, foreign_key: "author_id"
+end
+```
+
+### 8.2.2 Collection Scopes
+
+- Used for `has_many` and `has_and_belongs_to_many` associations.
+
+**group**
+
+- Groups records based on an attribute.
+
+```ruby
+class Part < ApplicationRecord
+  has_and_belongs_to_many :assemblies, -> { group "factory" }
+end
+```
+
+**limit**
+
+- Restricts the number of records.
+
+```ruby
+class Part < ApplicationRecord
+  has_and_belongs_to_many :assemblies, -> { order("created_at DESC").limit(50) }
+end
+```
+
+**order**
+
+- Specifies order of records.
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books, -> { order "date_confirmed DESC" }
+end
+```
+
+**distinct**
+
+- Ensures uniqueness in associated records.
+
+```ruby
+class Person < ApplicationRecord
+  has_many :readings
+  has_many :articles, -> { distinct }, through: :readings
+end
+```
+
+- Prevent duplicates in the database:
+
+```ruby
+add_index :readings, [:person_id, :article_id], unique: true
+```
+
+- Avoid using `include?` for uniqueness (race condition risk).
+
+### 8.2.3 Using the Association Owner
+
+- Allows passing the owner to the scope block.
+
+```ruby
+class Supplier < ApplicationRecord
+  has_one :account, ->(supplier) { where active: supplier.active? }
+end
+```
+
+- Warning: Prevents preloading the association.
+
+## 8.3 Counter Cache
+
+- The `:counter_cache` option optimizes counting associated objects by storing count values in a separate column.
+
+- Without a counter cache, author.books.size triggers a COUNT(*) query.
+
+**Implementation**
+  
+  - **1. Enable Counter Cache**:
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author, counter_cache: true
+end
+
+class Author < ApplicationRecord
+  has_many :books
+end
+```
+
+  - **2. Add Counter Cache Column**:
+
+```ruby
+class AddBooksCountToAuthors < ActiveRecord::Migration[8.0]
+  def change
+    add_column :authors, :books_count, :integer, default: 0, null: false
+  end
+end
+```
+
+  - **3. Custom Column Name**:
+
+```ruby
+class Book < ApplicationRecord
+  belongs_to :author, counter_cache: :count_of_books
+end
+```
+
+**Handling Large Tables**
+
+- Use `counter_cache: { active: false }` while backfilling values to avoid incorrect counts.
+
+```ruby
+belongs_to :author, counter_cache: { active: false, column: :custom_books_count }
+```
+
+**Resetting Counter Cache**
+
+- If data becomes stale (e.g., owner model’s primary key changes), use:
+
+```bash
+Author.reset_counters(author_id, :books)
+```
+
+## 8.4 Callbacks
+
+- Association callbacks allow executing methods at key points in a collection’s lifecycle.
+
+- Available callbacks:
+
+  `before_add`
+
+  `after_add`
+
+  `before_remove`
+
+  `after_remove`
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books, before_add: :check_credit_limit
+
+  def check_credit_limit(book)
+    throw(:abort) if limit_reached?
+  end
+end
+```
+
+- `check_credit_limit` runs before a book is added to an author's collection.
+
+- If `limit_reached?` returns `true,` the book is not added.
+
+## 8.5 Extensions
+
+- Allows adding custom finders, creators, or other methods to an association.
+
+- Two ways to extend associations:
+
+  - Inline in the model
+
+  - Using a named module
+
+**Inline Extension**
+
+```ruby
+class Author < ApplicationRecord
+  has_many :books do
+    def find_by_book_prefix(book_number)
+      find_by(category_id: book_number[0..2])
+    end
+  end
+end
+```
+
+**Named Extension Module**
+
+```ruby
+module FindRecentExtension
+  def find_recent
+    where("created_at > ?", 5.days.ago)
+  end
+end
+
+class Author < ApplicationRecord
+  has_many :books, -> { extending FindRecentExtension }
+end
+
+class Supplier < ApplicationRecord
+  has_many :deliveries, -> { extending FindRecentExtension }
+end
+```
+
+**Advanced Extensions with `proxy_association`**
+
+```ruby
+module AdvancedExtension
+  def find_and_log(query)
+    results = where(query)
+    proxy_association.owner.logger.info("Querying #{proxy_association.reflection.name} with #{query}")
+    results
+  end
+end
+
+class Author < ApplicationRecord
+  has_many :books, -> { extending AdvancedExtension }
+end
+```
+
+- `proxy_association` attributes:
+
+  `.owner` → Returns the model instance the association belongs to.
+
+  `.reflection` → Returns the association’s metadata.
+
+  `.target` → Returns the associated objects.
+
